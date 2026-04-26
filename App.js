@@ -9,6 +9,7 @@ import HabitDetailScreen     from './screens/HabitDetailScreen';
 import GlobalDashboardScreen from './screens/GlobalDashboardScreen';
 import HabitDashboardScreen  from './screens/HabitDashboardScreen';
 import { C } from './constants/theme';
+import { HabitProvider }     from './context/HabitContext';
 
 const Stack = createNativeStackNavigator();
 
@@ -39,7 +40,11 @@ export default function App() {
   const { width: winW, height: winH } = useWindowDimensions();
 
   if (Platform.OS !== 'web') {
-    return <Navigator />;
+    return (
+      <HabitProvider>
+        <Navigator />
+      </HabitProvider>
+    );
   }
 
   // Scale the phone frame to always fit the viewport with 24px padding
@@ -62,7 +67,9 @@ export default function App() {
           transform:       [{ scale }],
         }}
       >
-        <Navigator />
+        <HabitProvider>
+          <Navigator />
+        </HabitProvider>
       </View>
     </View>
   );

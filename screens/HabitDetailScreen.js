@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,36 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, AFFIRMATIONS } from '../constants/theme';
+import { C } from '../constants/theme';
+import { useHabits } from '../context/HabitContext';
+import { getCounts } from '../utils/counts';
+import { GREEN_MESSAGES, RED_MESSAGES, getNextMessage } from '../constants/messages';
 
-const MEDALLION = 210; // diameter of the coin button
+const MEDALLION = 210;
 
 export default function HabitDetailScreen({ route, navigation }) {
-  const { habit } = route.params;
+  const { habitId } = route.params;
+  const { habits, addTimestamp } = useHabits();
+
+  // Always look up the freshest version of the habit from context
+  const habit = habits.find(h => h.id === habitId);
+
+  const messages = habit?.colorType === 'green' ? GREEN_MESSAGES : RED_MESSAGES;
+  const lastMsgIdx = useRef(-1);
+  const [currentMessage, setCurrentMessage] = useState(() => {
+    const { message, idx } = getNextMessage(messages, -1);
+    lastMsgIdx.current = idx;
+    return message;
+  });
+
   const scaleAnim = useRef(new Animated.Value(1)).current;
-  const affirmation = AFFIRMATIONS[habit.id] ?? "You showed up. That's everything.";
+
+  // Recalculate counts whenever the habit's timestamps array changes
+  const counts = useMemo(
+    () => getCounts(habit?.timestamps ?? []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [habit?.timestamps.length]          // re-run when a new entry is added
+  );
 
   const pulse = () => {
     Animated.sequence([
@@ -32,6 +54,18 @@ export default function HabitDetailScreen({ route, navigation }) {
       }),
     ]).start();
   };
+
+  const handlePress = () => {
+    addTimestamp(habitId);
+    const { message, idx } = getNextMessage(messages, lastMsgIdx.current);
+    lastMsgIdx.current = idx;
+    setCurrentMessage(message);
+    pulse();
+  };
+
+  if (!habit) return null;
+
+  const habitColor = habit.colorType === 'green' ? C.green : C.red;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -53,28 +87,25 @@ export default function HabitDetailScreen({ route, navigation }) {
 
         {/* Coin / medallion button */}
         <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-          <TouchableOpacity onPress={pulse} activeOpacity={1} style={styles.medallionWrap}>
-            {/* Outer gold ring */}
+          <TouchableOpacity onPress={handlePress} activeOpacity={1} style={styles.medallionWrap}>
             <View style={[styles.medallion, { shadowColor: C.gold }]}>
-              {/* Inner colour glow disc */}
-              <View style={[styles.glowDisc, { backgroundColor: habit.color }]} />
-              {/* Inner gold hairline ring for depth */}
+              <View style={[styles.glowDisc, { backgroundColor: habitColor }]} />
               <View style={styles.innerRing} />
             </View>
           </TouchableOpacity>
         </Animated.View>
 
         {/* Count */}
-        <Text style={styles.countLarge}>{habit.month}×</Text>
+        <Text style={styles.countLarge}>{counts.month}×</Text>
         <Text style={styles.countSub}>this month</Text>
 
-        {/* Affirmation */}
-        <Text style={styles.affirmation}>{affirmation}</Text>
+        {/* Rotating affirmation */}
+        <Text style={styles.affirmation}>{currentMessage}</Text>
 
         {/* Habit dashboard link */}
         <TouchableOpacity
           style={styles.viewLink}
-          onPress={() => navigation.navigate('HabitDashboard', { habit })}
+          onPress={() => navigation.navigate('HabitDashboard', { habitId })}
           activeOpacity={0.7}
         >
           <Text style={styles.viewLinkText}>View Habit Dashboard  →</Text>
@@ -106,21 +137,21 @@ const styles = StyleSheet.create({
 
   // ── Title ─────────────────────────────────────
   title: {
-    color:          C.text,
-    fontSize:       28,
-    fontWeight:     '600',
-    letterSpacing:  0.6,
-    textAlign:      'center',
+    color:             C.text,
+    fontSize:          28,
+    fontWeight:        '600',
+    letterSpacing:     0.6,
+    textAlign:         'center',
     paddingHorizontal: 24,
-    marginTop:      10,
+    marginTop:         10,
   },
 
   // ── Body ──────────────────────────────────────
   body: {
-    flex:            1,
-    alignItems:      'center',
-    justifyContent:  'center',
-    paddingBottom:   32,
+    flex:           1,
+    alignItems:     'center',
+    justifyContent: 'center',
+    paddingBottom:  32,
   },
 
   // ── Medallion ─────────────────────────────────
@@ -138,7 +169,6 @@ const styles = StyleSheet.create({
     borderColor:     C.gold,
     alignItems:      'center',
     justifyContent:  'center',
-    // gold ambient glow
     shadowOffset:    { width: 0, height: 0 },
     shadowOpacity:   0.55,
     shadowRadius:    28,
@@ -152,12 +182,12 @@ const styles = StyleSheet.create({
     position:     'absolute',
   },
   innerRing: {
-    position:        'absolute',
-    width:           MEDALLION - 28,
-    height:          MEDALLION - 28,
-    borderRadius:    (MEDALLION - 28) / 2,
-    borderWidth:     0.8,
-    borderColor:     'rgba(201,168,76,0.30)',
+    position:     'absolute',
+    width:        MEDALLION - 28,
+    height:       MEDALLION - 28,
+    borderRadius: (MEDALLION - 28) / 2,
+    borderWidth:  0.8,
+    borderColor:  'rgba(201,168,76,0.30)',
   },
 
   // ── Count ─────────────────────────────────────

@@ -1,37 +1,70 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C } from '../constants/theme';
-
-const STATS = [
-  { label: 'Today',      key: 'today' },
-  { label: 'This Month', key: 'month' },
-  { label: 'This Year',  key: 'year'  },
-];
+import { useHabits } from '../context/HabitContext';
+import { getCounts } from '../utils/counts';
 
 export default function HabitDashboardScreen({ route, navigation }) {
-  const { habit } = route.params;
+  const { habitId } = route.params;
+  const { habits } = useHabits();
+
+  const habit = habits.find(h => h.id === habitId);
+  const counts = useMemo(
+    () => getCounts(habit?.timestamps ?? []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [habit?.timestamps.length]
+  );
+
+  const handleShare = async () => {
+    if (!habit) return;
+    const message =
+      `${habit.name} this month: ${counts.month}×\n` +
+      `Today: ${counts.today}×  ·  This year: ${counts.year}×\n\n` +
+      `Tracked with Vault.`;
+    try { await Share.share({ message }); } catch {}
+  };
+
+  if (!habit) return null;
+
+  const habitColor = habit.colorType === 'green' ? C.green : C.red;
+
+  const STATS = [
+    { label: 'Today',      value: counts.today },
+    { label: 'This Month', value: counts.month },
+    { label: 'This Year',  value: counts.year  },
+  ];
 
   return (
     <SafeAreaView style={styles.safe}>
 
-      {/* ── Back ── */}
-      <TouchableOpacity
-        style={styles.backBtn}
-        onPress={() => navigation.goBack()}
-        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-      >
-        <Text style={styles.backText}>← Back</Text>
-      </TouchableOpacity>
+      {/* ── Header row: Back + Share ── */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <Text style={styles.backText}>← Back</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.shareBtn}
+          onPress={handleShare}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <Text style={styles.shareIcon}>↑</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* ── Title ── */}
       <View style={styles.titleRow}>
-        <View style={[styles.titleDot, { backgroundColor: habit.color }]} />
+        <View style={[styles.titleDot, { backgroundColor: habitColor }]} />
         <Text style={styles.title}>{habit.name}</Text>
       </View>
       <View style={styles.divider} />
@@ -39,7 +72,7 @@ export default function HabitDashboardScreen({ route, navigation }) {
       {/* ── Stat cards ── */}
       <View style={styles.statsArea}>
         {STATS.map(s => (
-          <StatCard key={s.key} label={s.label} value={habit[s.key]} color={habit.color} />
+          <StatCard key={s.label} label={s.label} value={s.value} color={habitColor} />
         ))}
       </View>
 
@@ -55,7 +88,6 @@ export default function HabitDashboardScreen({ route, navigation }) {
 function StatCard({ label, value, color }) {
   return (
     <View style={styles.statCard}>
-      {/* top accent bar in habit colour */}
       <View style={[styles.accentBar, { backgroundColor: color }]} />
       <Text style={styles.statValue}>{value}×</Text>
       <Text style={styles.statLabel}>{label}</Text>
@@ -69,17 +101,37 @@ const styles = StyleSheet.create({
     backgroundColor: C.bg,
   },
 
-  // ── Back ──────────────────────────────────────
-  backBtn: {
+  // ── Header ────────────────────────────────────
+  headerRow: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    justifyContent:    'space-between',
     paddingTop:        14,
     paddingHorizontal: 22,
     marginBottom:      6,
   },
+  backBtn: {},
   backText: {
     color:         C.gold,
     fontSize:      14,
     fontWeight:    '500',
     letterSpacing: 0.4,
+  },
+  shareBtn: {
+    width:           32,
+    height:          32,
+    borderRadius:    16,
+    borderWidth:     1,
+    borderColor:     C.goldBorder,
+    alignItems:      'center',
+    justifyContent:  'center',
+    backgroundColor: 'rgba(201,168,76,0.08)',
+  },
+  shareIcon: {
+    color:      C.gold,
+    fontSize:   16,
+    fontWeight: '600',
+    lineHeight: 20,
   },
 
   // ── Title ─────────────────────────────────────
@@ -116,21 +168,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
   },
   statCard: {
-    flex:            1,
+    flex:             1,
     marginHorizontal: 5,
-    backgroundColor: C.card,
-    borderRadius:    14,
-    borderWidth:     1,
-    borderColor:     C.goldBorder,
-    alignItems:      'center',
-    paddingVertical: 22,
-    overflow:        'hidden',
-    // warm subtle shadow
-    shadowColor:     C.gold,
-    shadowOffset:    { width: 0, height: 3 },
-    shadowOpacity:   0.10,
-    shadowRadius:    10,
-    elevation:       4,
+    backgroundColor:  C.card,
+    borderRadius:     14,
+    borderWidth:      1,
+    borderColor:      C.goldBorder,
+    alignItems:       'center',
+    paddingVertical:  22,
+    overflow:         'hidden',
+    shadowColor:      C.gold,
+    shadowOffset:     { width: 0, height: 3 },
+    shadowOpacity:    0.10,
+    shadowRadius:     10,
+    elevation:        4,
   },
   accentBar: {
     position: 'absolute',
