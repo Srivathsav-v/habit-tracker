@@ -1,8 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const KEY = 'vault_habits_v1';
+const HABITS_KEY   = 'vault_habits_v1';
+const SETTINGS_KEY = 'vault_settings_v1';
 
-// The four fixed slots — colorType is permanent, name starts null
+// ─── Habits ────────────────────────────────────────────────────────────────
+
 export const DEFAULT_HABITS = [
   { id: '1', name: null, colorType: 'green', timestamps: [] },
   { id: '2', name: null, colorType: 'green', timestamps: [] },
@@ -12,10 +14,9 @@ export const DEFAULT_HABITS = [
 
 export async function loadHabits() {
   try {
-    const json = await AsyncStorage.getItem(KEY);
+    const json = await AsyncStorage.getItem(HABITS_KEY);
     if (!json) return DEFAULT_HABITS.map(h => ({ ...h, timestamps: [] }));
     const stored = JSON.parse(json);
-    // Merge stored data onto defaults so new schema fields always exist
     return DEFAULT_HABITS.map(def => ({
       ...def,
       ...stored.find(h => h.id === def.id),
@@ -27,8 +28,35 @@ export async function loadHabits() {
 
 export async function saveHabits(habits) {
   try {
-    await AsyncStorage.setItem(KEY, JSON.stringify(habits));
+    await AsyncStorage.setItem(HABITS_KEY, JSON.stringify(habits));
   } catch (e) {
-    console.warn('Vault: AsyncStorage save failed', e);
+    console.warn('Vault: habit save failed', e);
+  }
+}
+
+// ─── Settings ──────────────────────────────────────────────────────────────
+
+export const DEFAULT_SETTINGS = {
+  themePref:   'system',           // 'system' | 'dark' | 'light'
+  showCount:   true,               // show monthly count on home cards
+  buttonShape: 'rounded',          // 'rounded' | 'pill' | 'square'
+  habitOrder:  ['1', '2', '3', '4'],
+};
+
+export async function loadSettings() {
+  try {
+    const json = await AsyncStorage.getItem(SETTINGS_KEY);
+    if (!json) return { ...DEFAULT_SETTINGS };
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(json) };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+export async function saveSettings(settings) {
+  try {
+    await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch (e) {
+    console.warn('Vault: settings save failed', e);
   }
 }
