@@ -105,6 +105,47 @@ habit-tracker/
 
 ---
 
+## Docker
+
+### Run with Docker (no Node or Expo needed)
+
+If you just want to run the app without installing anything, use the pre-built image from GitHub Container Registry:
+
+```bash
+docker run -p 8080:80 ghcr.io/srivathsav-v/habit-tracker:latest
+```
+
+Then open [http://localhost:8080](http://localhost:8080).
+
+### CI/CD — automatic builds
+
+Every push to `main` triggers a GitHub Actions workflow that:
+1. Builds the app (`expo export --platform web`)
+2. Packages it into a Docker image (served by nginx)
+3. Pushes it to `ghcr.io/srivathsav-v/habit-tracker`
+
+Two tags are published on each push:
+- `latest` — always points to the most recent build
+- `sha-<commit>` — pinned to a specific commit, useful for rollbacks
+
+The workflow file is at `.github/workflows/docker.yml`. No secrets need to be configured — it uses the built-in `GITHUB_TOKEN`.
+
+### Deploy to a server
+
+Once you have the image, deploying is the same one-liner on any server or cloud platform:
+
+```bash
+docker run -d -p 80:80 ghcr.io/srivathsav-v/habit-tracker:latest
+```
+
+Platforms that can deploy it directly from the image:
+- **Railway** — connect your GitHub repo, it picks up the Dockerfile automatically
+- **Render** — same, deploy as a Web Service from the Dockerfile
+- **Fly.io** — `fly launch` then point at the image
+- **Any VPS** — install Docker, run the command above
+
+---
+
 ## Troubleshooting
 
 **Port 8081 already in use**
